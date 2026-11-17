@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark light">
+<title>Vespera connector</title>
+<style>
+:root{--bg:#14121b;--panel:#1d1b26;--panel2:#24232c;--text:#f1eee5;--muted:#aaa7b8;--border:#ffffff24;--accent:#c9aff7;--on-accent:#17141f;--ok:#7fd6a0;--warn:#f0c674;--bad:#ee8b8b;--radius:14px}
+@media (prefers-color-scheme:light){:root{--bg:#f6f4fb;--panel:#fff;--panel2:#efecf6;--text:#221e2c;--muted:#5f5a70;--border:#22203a26;--accent:#6c4bb8;--on-accent:#fff;--ok:#1f7a45;--warn:#8a5a00;--bad:#b3261e}}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:32px 16px 56px;display:grid;gap:16px}
+header{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+h1{font-size:1.45rem;margin:0;flex:1 1 auto}
+h2{font-size:1.05rem;margin:0}
+p{margin:0}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;display:grid;gap:12px}
+.muted{color:var(--muted)}
+small{color:var(--muted)}
+.pill{display:inline-flex;gap:8px;align-items:center;padding:4px 12px;border-radius:999px;border:1px solid var(--border);background:var(--panel2);font-size:.88rem}
+.pill::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.pill[data-tone=ok]::before{background:var(--ok)}
+.pill[data-tone=warn]::before{background:var(--warn)}
+.pill[data-tone=bad]::before{background:var(--bad)}
+form{display:grid;gap:14px}
+label{display:grid;gap:6px;font-weight:600}
+label small{font-weight:400}
+input{width:100%;min-height:44px;padding:9px 12px;border:1px solid var(--border);border-radius:9px;background:var(--panel2);color:inherit;font:inherit}
+button,.button{min-height:44px;padding:8px 16px;border:1px solid var(--border);border-radius:9px;background:var(--panel2);color:inherit;font:inherit;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+button.primary{background:var(--accent);border-color:transparent;color:var(--on-accent);font-weight:600}
+button.danger{color:var(--bad)}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1 1 150px}
+:is(button,input,a,summary):focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+a{color:var(--accent)}
+.code{font:700 2rem ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.2em;text-align:center;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--panel2);overflow-wrap:anywhere}
+.link{font:.85rem ui-monospace,SFMono-Regular,Consolas,monospace;overflow-wrap:anywhere;color:var(--muted)}
+.notice{padding:10px 12px;border-radius:9px;border:1px solid var(--border);background:var(--panel2)}
+.notice[data-tone=bad]{border-color:var(--bad)}
+.notice[data-tone=ok]{border-color:var(--ok)}
+.models{margin:0;padding-left:1.2rem;overflow-wrap:anywhere}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:no-preference){button{transition:background .15s,border-color .15s}}
+@media (max-width:480px){main{padding:20px 12px 40px}.code{font-size:1.5rem}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Vespera connector</h1>
+    <span class="pill" id="state" role="status" aria-live="polite" data-tone="">Loading…</span>
+  </header>
+
+  <p class="muted">Shares your existing CLIProxy with Vespera as a model provider. This page runs only on this computer. Your CLIProxy client key is saved here and is never sent to Vespera.</p>
+
+  <section class="card" id="locked" hidden>
+    <h2>Open this page from the connector</h2>
+    <p>This page needs the private link printed by the connector in its terminal. Run the connector again and open the link it shows.</p>
+  </section>
+
+  <div id="app" hidden>
+    <section class="card" id="pairing" hidden aria-live="polite" style="margin-bottom:16px">
+      <h2>Approve this computer in Vespera</h2>
+      <p>Sign in to Vespera, open the link below, check that the code matches and press Approve.</p>
+      <div class="code" id="pair-code" aria-label="Pairing code"></div>
+      <p class="link" id="pair-link"></p>
+      <div class="row">
+        <button type="button" class="primary" id="open-approval">Open approval page</button>
+        <button type="button" id="copy-link">Copy link</button>
+      </div>
+      <small>Nothing connects until you approve. The code expires after about 10 minutes; press “Connect to Vespera” again for a new one.</small>
+    </section>
+
+    <section class="card" style="margin-bottom:16px">
+      <h2>Settings</h2>
+      <form id="settings" autocomplete="off">
+        <label>Vespera address
+          <input id="vespera-url" type="url" required placeholder="https://vespera.ephixd.com" spellcheck="false" autocapitalize="off">
+          <small>Beta users can add /beta, for example https://vespera.ephixd.com/beta.</small></label>
+        <label>CLIProxy address
+          <input id="local-url" type="url" required placeholder="http://127.0.0.1:8317/v1" spellcheck="false" autocapitalize="off">
+          <small>Use a loopback address on this computer.</small></label>
+        <label>CLIProxy client API key <span class="muted">(optional)</span>
+          <input id="api-key" type="password" autocomplete="new-password" spellcheck="false" placeholder="Leave empty to keep the saved key">
+          <small id="key-note">Use a client key from your CLIProxy config. Never enter the management key. It stays on this computer.</small></label>
+        <div class="row">
+          <button type="submit" id="save">Save settings</button>
+          <button type="button" id="clear-key">Clear saved CLIProxy key</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card" style="margin-bottom:16px">
+      <h2>Connection</h2>
+      <p id="connection-text" class="muted"></p>
+      <div class="row">
+        <button type="button" class="primary" id="setup">Connect to Vespera</button>
+        <button type="button" id="check">Check CLIProxy</button>
+        <button type="button" class="danger" id="disconnect">Disconnect</button>
+      </div>
+      <div class="notice" id="check-result" hidden></div>
+    </section>
+
+    <div class="notice" id="message" role="alert" hidden></div>
+
+    <section class="card" style="margin-top:16px">
+      <h2>Stop the connector</h2>
+      <p class="muted">Closes this page and the connector on this computer. Vespera keeps the provider; it simply shows it offline until you start the connector again.</p>
+      <div class="row"><button type="button" id="startup" hidden>Enable startup at sign-in</button><button type="button" id="shutdown">Stop connector</button></div>
+      <p id="session-note" class="muted" hidden>Session-only mode: credentials remain in memory. Keep the terminal running; pair again after it stops.</p>
+    </section>
+  </div>
+
+  <p class="muted"><small>Source: <a href="https://github.com/EpicIsTheOne/VesperaSDK" target="_blank" rel="noreferrer noopener">github.com/EpicIsTheOne/VesperaSDK</a></small></p>
+</main>
+
+<script>
+(() => {
+  'use strict'
+  const $ = id => document.getElementById(id)
+  const KEY = 'vespera-connector-session'
+  let token = ''
+  // The access token arrives in the URL fragment (never sent to a server or logged). Take it, then remove it from the address bar.
+  try {
+    const match = location.hash.match(/(?:^#|&)token=([^&]+)/)
+    if (match) { token = decodeURIComponent(match[1]); try { sessionStorage.setItem(KEY, token) } catch {} }
+    else { try { token = sessionStorage.getItem(KEY) || '' } catch {} }
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search)
+  } catch {}
+
+  let status = null, polling = null, busy = false, filled = false, localPairing = null
+
+  async function call(path, method = 'GET', body) {
+    const response = await fetch(path, {
+      method, cache: 'no-store', referrerPolicy: 'no-referrer',
+      headers: { Authorization: 'Bearer ' + token, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+    let data = {}
+    try { data = await response.json() } catch {}
+    if (!response.ok) throw new Error(data.error || (response.status === 401 || response.status === 403 ? 'This page is not authorised. Open the private link from the connector again.' : 'Request failed (' + response.status + ')'))
+    return data
+  }
+
+  function message(text, tone = 'bad') {
+    const node = $('message'); node.textContent = text || ''; node.hidden = !text; node.dataset.tone = tone
+  }
+  function setBusy(value) {
+    busy = value
+    for (const id of ['save', 'setup', 'check', 'disconnect', 'shutdown']) $(id).disabled = value
+    if (!value && status) render()
+  }
+
+  function render() {
+    const s = status || {}
+    $('startup').hidden = !s.autostart_available
+    $('startup').textContent = s.autostart_enabled ? 'Disable startup at sign-in' : 'Enable startup at sign-in'
+    $('session-note').hidden = !s.session_only
+    const pairing = [s.pairing, s.paired ? null : localPairing].find(item => item && item.user_code) || null
+    let label = 'Not set up', tone = ''
+    if (s.error) { label = 'Needs attention'; tone = 'bad' }
+    else if (pairing && !s.paired) { label = 'Waiting for approval'; tone = 'warn' }
+    else if (s.paired && s.running) { label = s.state === 'online' || !s.state ? 'Connected' : String(s.state); tone = 'ok' }
+    else if (s.paired) { label = 'Paired, not running'; tone = 'warn' }
+    else if (s.configured) { label = 'Not connected' }
+    $('state').textContent = label; $('state').dataset.tone = tone
+
+    if (!filled) {
+      $('vespera-url').value = s.vespera_url || 'https://vespera.ephixd.com'
+      $('local-url').value = s.local_url || 'http://127.0.0.1:8317/v1'
+      filled = true
+    }
+    $('key-note').textContent = s.has_api_key
+      ? 'A client key is saved on this computer. Leave this empty to keep it, or type a new key to replace it. Never enter the management key.'
+      : 'Optional. Use a client key from your CLIProxy config only if it requires one. Never enter the management key. It stays on this computer.'
+    $('api-key').placeholder = s.has_api_key ? 'Saved on this computer' : 'No key saved'
+
+    $('pairing').hidden = !(pairing && !s.paired)
+    if (pairing) {
+      $('pair-code').textContent = pairing.user_code
+      const link = pairing.verification_uri_complete || pairing.verification_uri || ''
+      $('pair-link').textContent = link
+      $('open-approval').dataset.href = link
+      $('copy-link').dataset.href = link
+    }
+    $('connection-text').textContent = s.paired
+      ? (s.running ? 'Connected to ' + (s.vespera_url || 'Vespera') + '. Keep this connector running while Vespera uses your CLIProxy.' : 'This computer is paired with Vespera. Start the connector to bring it online.')
+      : 'Save your settings, then connect. Your browser opens the approval page on this computer, or you can use the code shown here from any signed-in browser.'
+    $('setup').textContent = pairing && !s.paired ? 'Get a new code' : s.paired ? 'Pair again' : 'Connect to Vespera'
+    $('disconnect').hidden = !(s.paired || pairing)
+    if (s.error) message(s.error)
+    else if ($('message').dataset.source === 'status') message('')
+    $('message').dataset.source = s.error ? 'status' : ''
+    for (const id of ['save', 'setup', 'check', 'disconnect', 'shutdown']) $(id).disabled = busy
+  }
+
+  async function refresh() {
+    try { status = await call('/api/status'); render(); return true }
+    catch (e) { $('state').textContent = 'Connector stopped'; $('state').dataset.tone = 'bad'; if (!busy) message(e.message); return false }
+  }
+  function schedule() {
+    clearTimeout(polling)
+    const waiting = status && !status.paired && (status.pairing || localPairing)
+    polling = setTimeout(async () => { if (!document.hidden) await refresh(); schedule() }, waiting ? 2000 : 6000)
+  }
+
+  async function saveSettings() {
+    const body = { vespera_url: $('vespera-url').value.trim().replace(/\/+$/, ''), local_url: $('local-url').value.trim().replace(/\/+$/, '') }
+    const key = $('api-key').value.trim()
+    if (key) body.api_key = key
+    await call('/api/configure', 'POST', body)
+    $('api-key').value = ''
+  }
+  async function action(work, success) {
+    if (busy) return
+    setBusy(true); message('')
+    try { await work(); if (success) message(success, 'ok') } catch (e) { message(e.message) }
+    await refresh(); setBusy(false); schedule()
+  }
+
+  $('settings').addEventListener('submit', event => { event.preventDefault(); action(saveSettings, 'Settings saved.') })
+  $('clear-key').addEventListener('click', () => action(async () => {
+    await call('/api/configure', 'POST', { api_key: '' })
+    $('api-key').value = ''
+  }, 'CLIProxy key removed from this computer.'))
+  $('startup').addEventListener('click', () => action(async () => {
+    await call('/api/autostart', 'POST', { enabled: !status.autostart_enabled })
+  }, 'Startup preference saved. A fresh sign-in is needed to verify it.'))
+  $('setup').addEventListener('click', () => action(async () => {
+    if (!$('settings').reportValidity()) throw new Error('Check the addresses above.')
+    await saveSettings()
+    const result = await call('/api/setup', 'POST', {})
+    localPairing = result.pairing || (result.user_code ? result : null)
+  }))
+  $('open-approval').addEventListener('click', event => {
+    const href = event.currentTarget.dataset.href
+    if (href) window.open(href, '_blank', 'noopener,noreferrer')
+  })
+  $('copy-link').addEventListener('click', async event => {
+    const href = event.currentTarget.dataset.href
+    try { await navigator.clipboard.writeText(href); message('Link copied.', 'ok') } catch { message('Select the link above and copy it.') }
+  })
+  $('check').addEventListener('click', () => action(async () => {
+    const node = $('check-result'); node.hidden = true
+    const result = await call('/api/check', 'POST', {})
+    node.hidden = false; node.dataset.tone = result.ok ? 'ok' : 'bad'; node.replaceChildren()
+    const models = Array.isArray(result.models) ? result.models : []
+    const head = document.createElement('p')
+    head.textContent = result.ok ? 'CLIProxy answered with ' + models.length + ' model' + (models.length === 1 ? '' : 's') + '.' : 'CLIProxy did not answer as expected.'
+    node.append(head)
+    if (models.length) { const list = document.createElement('ul'); list.className = 'models'; for (const id of models.slice(0, 30)) { const item = document.createElement('li'); item.textContent = String(id); list.append(item) } if (models.length > 30) { const more = document.createElement('li'); more.textContent = '…and ' + (models.length - 30) + ' more'; list.append(more) } node.append(list) }
+  }))
+  $('disconnect').addEventListener('click', () => {
+    if (!confirm('Disconnect this computer from Vespera? You can pair it again later.')) return
+    action(async () => { await call('/api/disconnect', 'POST', {}); localPairing = null }, 'Disconnected.')
+  })
+  $('shutdown').addEventListener('click', async () => {
+    if (!confirm('Stop the connector on this computer? Vespera will show it offline until you start it again.')) return
+    setBusy(true); clearTimeout(polling)
+    try { await call('/api/shutdown', 'POST', {}) } catch (e) { message(e.message); setBusy(false); schedule(); return }
+    $('app').hidden = true; $('state').textContent = 'Stopped'; $('state').dataset.tone = ''
+    message('The connector has stopped. You can close this tab.', 'ok')
+  })
+
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && token) refresh() })
+
+  if (!token) { $('locked').hidden = false; $('state').textContent = 'Locked' }
+  else { $('app').hidden = false; refresh().then(schedule) }
+})()
+</script>
+</body>
+</html>

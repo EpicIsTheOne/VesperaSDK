@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vespera-connector"
+version = "0.1.0"
+description = "Connect your existing local CLIProxy to your Vespera account"
+requires-python = ">=3.11"
+dependencies = ["httpx==0.28.1", "keyring==25.6.0", "platformdirs==4.3.8"]
+license = "MIT"
+
+[project.scripts]
+vespera-connector = "vespera_connector.cli:main"
+
+[tool.setuptools.package-data]
+vespera_connector = ["ui.html"]
